@@ -2,8 +2,10 @@
   "name": "erp",
   "private": true,
   "scripts": {
-    "frontend:build": "cd frontend/erp && npm install && npm run build && cp -r build ../../backend/build",
-    "build": "npm run frontend:build",
-    "start": "cd backend && npm install && npm start"
+    "build:frontend": "cd frontend/erp && npm install && npm run build && cp -r build ../../backend/build",
+    "build": "npm run build:frontend",
+    "start:backend": "cd backend && npm install && npm start",
+    "start": "npm run start:backend",
+    "postinstall": "cd frontend/erp && npm install && cd ../../backend && npm install"
   }
 }
