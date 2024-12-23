@@ -1,9 +1,8 @@
 {
-  "dependencies": {
-    "body-parser": "^1.20.3",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "nodemon": "^3.1.9",
-    "puppeteer": "^23.11.1"
+  "name": "erp",
+  "private": true,
+  "scripts": {
+    "build": "cp -r frontend/erp/build backend/build", 
+    "start": "cd backend && npm install && npm start"
   }
 }
