@@ -2,7 +2,8 @@
   "name": "erp",
   "private": true,
   "scripts": {
-    "build": "cd frontend/erp && npm install && npm run build && cp -r frontend/erp/build ../backend/build",
+    "frontend:build": "cd frontend/erp && npm install && npm run build && cp -r build ../../backend/build",
+    "build": "npm run frontend:build",
     "start": "cd backend && npm install && npm start"
   }
 }
