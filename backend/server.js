@@ -1,17 +1,21 @@
 const express = require("express");
+const path = require("path");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const puppeteer = require("puppeteer");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;  // Use Render's PORT environment variable
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// Endpoint to fetch both attendance and semester marks data
-app.post("/data", async (req, res) => {
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, "../frontend/erp/build")));
+
+// Endpoint to handle login and scraping
+app.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -22,21 +26,21 @@ app.post("/data", async (req, res) => {
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
 
-        // Login and scrape attendance data
         await page.goto("https://erp.cbit.org.in/", { waitUntil: "networkidle2" });
 
-        // Input username and password
+        // Input username
         await page.type("#txtUserName", username);
         await page.click("#btnNext");
         await page.waitForSelector("#txtPassword", { visible: true });
-        await page.type("#txtPassword", password);
 
+        // Input password
+        await page.type("#txtPassword", password);
         await Promise.all([
             page.click("#btnSubmit"),
             page.waitForNavigation({ waitUntil: "networkidle2" }),
         ]);
 
-        // Navigate to attendance page
+        // Navigate to the attendance page
         await page.click("#ctl00_cpStud_lnkStudentMain");
         await page.waitForNavigation({ waitUntil: "networkidle2" });
 
@@ -46,7 +50,8 @@ app.post("/data", async (req, res) => {
             const data = [];
 
             rows.forEach((row, index) => {
-                if (index === 0) return; // Skip header row
+                if (index === 0) return; // Skip the header row
+
                 const cells = row.querySelectorAll("td");
                 if (cells.length === 6) {
                     data.push({
@@ -58,6 +63,7 @@ app.post("/data", async (req, res) => {
                     });
                 }
             });
+
             return data;
         });
 
@@ -68,34 +74,24 @@ app.post("/data", async (req, res) => {
             return totalRow ? totalRow.textContent.trim() : null;
         });
 
-        // Scrape semester marks data
-        await page.click("#ctl00_cpStud_lnkOverallMarksSemwiseMarks");
-        await page.waitForNavigation({ waitUntil: "networkidle2" });
-
-        await page.waitForSelector("#ctl00_cpStud_PanelDueSubjects", { visible: true });
-
-        const semMarksData = await page.evaluate(() => {
-            const data = {};
-
-            const cgpa = document.querySelector("#ctl00_cpStud_lblMarks")?.textContent.trim();
-            if (cgpa) data.cgpa = cgpa;
-
-            const credits = document.querySelector("#ctl00_cpStud_lblCredits")?.textContent.trim();
-            if (credits) data.creditsObtained = credits;
-
-            const subjectDue = document.querySelector("#ctl00_cpStud_lblDue")?.textContent.trim();
-            if (subjectDue) data.subjectDue = subjectDue;
-
-            return data;
-        });
-
         await browser.close();
 
-        res.status(200).json({ attendanceData, totalAttendance, semesterData: semMarksData });
+        // Check if we have valid attendance data
+        if (!attendanceData || attendanceData.length === 0) {
+            return res.status(404).json({ error: "No attendance data found." });
+        }
+
+        // Send the attendance data and total attendance
+        res.status(200).json({ attendanceData, totalAttendance });
     } catch (error) {
-        console.error("Error fetching data:", error.message);
-        res.status(500).json({ error: "Failed to fetch data." });
+        console.error("Error scraping attendance:", error.message);
+        res.status(500).json({ error: "Failed to scrape attendance data." });
     }
+});
+
+// Fallback to React's index.html for any other routes
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/erp/build/index.html"));
 });
 
 // Start server
